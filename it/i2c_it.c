@@ -15,7 +15,14 @@
 #undef DBG
 #define DBG if(0)
 
-#define I2C_TIMEOUT                 200
+#define I2C_SPEED_FREQ                          400000
+#define I2C_BYTE_TIMEOUT_US                     ((10^6) / (I2C_SPEED_FREQ / 9) + 1)
+#define I2C_TRANSFER_MIN_TIMEOUT_MS             2
+
+/* For a simlicity START + ADDR(R/W) + RESTART + STOP
+ * are considered as a single 2-byte transaction */
+#define I2C_TRANSFER_TIMEOUT_MS(num_bytes)      (((2 + num_bytes) * 9 * I2C_BYTE_TIMEOUT_US) / \
+                                                    1000 + I2C_TRANSFER_MIN_TIMEOUT_MS)
 
 /* Set to '0' if some part of HW are initialized externally */
 #define I2C_INIT_HW                 0 /* '0' - Skip HW initialization */
@@ -243,7 +250,8 @@ bool I2Cx_ReadData(I2C_TypeDef* I2Cx, uint8_t SlaveAddr, uint16_t ReadAddr,
         return false;
     }
 
-    if (xSemaphoreTake(xSemphr, I2C_TIMEOUT) == pdTRUE) {
+    /* Block until end of transaction */
+    if (xSemaphoreTake(xSemphr, I2C_TRANSFER_TIMEOUT_MS(AddrLen + NumBytesToRead)) == pdTRUE) {
         Result = (Iface->Rx.Idx == Iface->Rx.Len);
     } else {
         if (LL_I2C_IsActiveFlag_NACK(I2Cx)) {
@@ -291,7 +299,7 @@ bool I2Cx_WriteData(I2C_TypeDef* I2Cx, uint8_t SlaveAddr, uint16_t WriteAddr,
     }
 
     /* Block until end of transaction */
-    if (xSemaphoreTake(xSemphr, I2C_TIMEOUT) == pdTRUE) {
+    if (xSemaphoreTake(xSemphr, I2C_TRANSFER_TIMEOUT_MS(AddrLen + NumBytesToWrite)) == pdTRUE) {
         Result = (Iface->Tx.Idx == Iface->Tx.Len);
     } else {
         if (LL_I2C_IsActiveFlag_NACK(I2Cx)) {

@@ -8,7 +8,9 @@
 #include "stm32l0xx_ll_gpio.h"
 #include "stm32l0xx_ll_cortex.h"
 
-#define I2C_TIMEOUT_MS              5
+#define I2C_SPEED_FREQ              400000
+#define I2C_BYTE_TIMEOUT_US         ((10^6) / (I2C_SPEED_FREQ / 9) + 1)
+#define I2C_BYTE_TIMEOUT_MS         (I2C_BYTE_TIMEOUT_US / 1000 + 1)
 
 /* Set to '0' if some part of HW are initialized externally */
 #define I2C_INIT_HW                 0 /* '0' - Skip HW initialization */
@@ -96,7 +98,7 @@ void I2Cx_Init(I2C_TypeDef* I2Cx)
 static bool I2Cx_StartTransmission(I2C_TypeDef* I2Cx, i2c_direction_t Direction,
     uint8_t SlaveAddr, uint8_t TransferSize)
 {
-    uint32_t Timeout = I2C_TIMEOUT_MS;
+    uint32_t Timeout = I2C_BYTE_TIMEOUT_MS;
     uint32_t Request;
 
     switch (Direction) {
@@ -134,7 +136,7 @@ static bool I2Cx_StartTransmission(I2C_TypeDef* I2Cx, i2c_direction_t Direction,
 
 static bool I2Cx_SendByte(I2C_TypeDef* I2Cx, uint8_t byte)
 {
-    uint32_t Timeout = I2C_TIMEOUT_MS;
+    uint32_t Timeout = I2C_BYTE_TIMEOUT_MS;
 
     LL_I2C_TransmitData8(I2Cx, byte);
     while (!LL_I2C_IsActiveFlag_TXIS(I2Cx) && !LL_I2C_IsActiveFlag_TC(I2Cx)) {
@@ -156,7 +158,7 @@ static bool I2Cx_SendByte(I2C_TypeDef* I2Cx, uint8_t byte)
 
 static bool I2Cx_ReceiveByte(I2C_TypeDef* I2Cx, uint8_t *Byte)
 {
-    uint32_t Timeout = I2C_TIMEOUT_MS;
+    uint32_t Timeout = I2C_BYTE_TIMEOUT_MS;
 
     if (!Byte) return false;
 
